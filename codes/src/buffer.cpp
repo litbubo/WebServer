@@ -91,7 +91,9 @@ void Buffer::retrieveUntil(const char *end)
  */
 std::string Buffer::retrieveAlltoString()
 {
-    return std::string(this->peek(), this->readableBytes());
+    std::string str = std::string(this->peek(), this->readableBytes());
+    this->retrieveAll();
+    return str;
 }
 
 /*
@@ -145,7 +147,7 @@ void Buffer::ensurewritable(size_t len)
     assert(this->writableBytes() >= len);
 }
 /*
- *
+ * 调整buff空间，使其容纳的下新存入的内容
  */
 void Buffer::makeSpace(size_t len)
 {
@@ -164,17 +166,49 @@ void Buffer::makeSpace(size_t len)
 }
 
 /*
- *
+ * 从socket中读取数据存入到buff
  */
 ssize_t Buffer::readFd(int fd, int *retError)
 {
-    return 0;
+    char buff[1024 * 128];
+    struct iovec iov[2] = {0};
+
+    size_t writable = this->writableBytes();
+    iov[0].iov_base = this->beginPtr() + writePos_;
+    iov[0].iov_len = writable;
+    iov[1].iov_base = buff;
+    iov[1].iov_len = sizeof(buff);
+
+    const ssize_t len = readv(fd, iov, sizeof(iov) / sizeof(struct iovec));
+    if (len < 0)
+    {
+        *retError = errno;
+    }
+    else if (static_cast<size_t>(len) <= writable)
+    {
+        this->hasWritten(len);
+    }
+    else
+    {
+        writePos_ = buffer_.size();
+        append(buff, len - writable);
+    }
+    return len;
 }
 
 /*
- *
+ * 向socket发送buff中的数据
  */
 ssize_t Buffer::writeFd(int fd, int *retError)
 {
-    return 0;
+    const ssize_t len = write(fd, this->peek(), this->readableBytes());
+    if (len < 0)
+    {
+        *retError = errno;
+    }
+    else
+    {
+        readPos_ += len;
+    }
+    return len;
 }

@@ -85,7 +85,7 @@ template <typename T>
 size_t BlockQueue<T>::size() const
 {
     std::lock_guard<std::mutex> locker(mtx_);
-    return size;
+    return deq_.size();
 }
 
 /*
@@ -105,7 +105,7 @@ template <typename T>
 bool BlockQueue<T>::full() const
 {
     std::lock_guard<std::mutex> locker(mtx_);
-    return deq_.size >= capacity_;
+    return deq_.size() >= capacity_;
 }
 
 /*
@@ -152,7 +152,7 @@ bool BlockQueue<T>::pop(T &item)
     /* 消费者阻塞 */
     while (deq_.empty())
     {
-        condProducer_.wait(locker);
+        condConsumer_.wait(locker);
         if (isClose_ == true)
             return false;
     }
@@ -172,7 +172,7 @@ bool BlockQueue<T>::pop(T &item, int timeout)
     /* 消费者阻塞 */
     while (deq_.empty())
     {
-        if (condProducer_.wait_for(locker, std::chrono::seconds(timeout)) == std::cv_status::timeout)
+        if (condConsumer_.wait_for(locker, std::chrono::seconds(timeout)) == std::cv_status::timeout)
             return false;
         if (isClose_ == true)
             return false;

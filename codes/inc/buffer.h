@@ -6,6 +6,7 @@
 #include <iostream>
 #include <sys/uio.h>
 #include <unistd.h>
+#include <errno.h>
 #include <vector>
 
 class Buffer
