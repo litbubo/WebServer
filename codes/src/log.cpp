@@ -186,7 +186,7 @@ void Log::write(LOG_LEVEL level, const char *format, ...)
         memset(temp, 0, sizeof(temp));
 
         appendLogLevelTitle(level);
-        
+
         va_list vaList;
         va_start(vaList, format);
         vsnprintf(temp, sizeof(temp), format, vaList);
@@ -215,19 +215,19 @@ void Log::appendLogLevelTitle(LOG_LEVEL level)
     switch (level)
     {
     case Log::DEBUG:
-        buffer_.append("[DEBUG]: ", 10);
+        buffer_.append("[DEBUG]: ", 9);
         break;
     case Log::INFO:
-        buffer_.append("[INFO]:  ", 10);
+        buffer_.append("[INFO]:  ", 9);
         break;
     case Log::WARN:
-        buffer_.append("[WARN]:  ", 10);
+        buffer_.append("[WARN]:  ", 9);
         break;
     case Log::ERROR:
-        buffer_.append("[ERROR]: ", 10);
+        buffer_.append("[ERROR]: ", 9);
         break;
     default:
-        buffer_.append("[INFO]:  ", 10);
+        buffer_.append("[INFO]:  ", 9);
         break;
     }
 }

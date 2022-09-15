@@ -9,13 +9,24 @@
 
 int main()
 {
-    Buffer buffer;
-    buffer.ensurewritable(10);
-    BlockQueue<int> q(1024);
-    q.flush();
-    q.empty();
-    Epoller ep(5);
-    ep.addFd(5, 4);
+    Log *log = Log::instance();
+    log->init(Log::DEBUG);
+    int i = 0;
+    while (i < 100000)
+    {
+        if (i % 2 == 0)
+        {
+            LOG_ERROR("test---%d", i);
+        }
+            
+        else
+        {
+            LOG_INFO("test---%d", i);
+        }
+            
+
+        i++;
+    }
 
     exit(0);
 }

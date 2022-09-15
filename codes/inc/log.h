@@ -58,8 +58,44 @@ private:
 
     FILE *fp_;
     Buffer buffer_;
-    
+
     std::unique_ptr<BlockQueue<std::string>> queue_;
     std::unique_ptr<std::thread> thread_;
     std::mutex mtx_;
 };
+
+#define LOG_BASE(level, format, ...)                                                       \
+    do                                                                                     \
+    {                                                                                      \
+        Log *log = Log::instance();                                                        \
+        if (log->isOpen() && static_cast<int>(log->getLevel()) <= static_cast<int>(level)) \
+        {                                                                                  \
+            log->write(level, format, ##__VA_ARGS__);                                      \
+            log->flush();                                                                  \
+        }                                                                                  \
+    } while (0);
+
+#define LOG_DEBUG(format, ...)                      \
+    do                                              \
+    {                                               \
+        LOG_BASE(Log::DEBUG, format, ##__VA_ARGS__) \
+    } while (0);
+
+#define LOG_INFO(format, ...)                      \
+    do                                             \
+    {                                              \
+        LOG_BASE(Log::INFO, format, ##__VA_ARGS__) \
+    } while (0);
+
+#define LOG_WARN(format, ...)                      \
+    do                                             \
+    {                                              \
+        LOG_BASE(Log::WARN, format, ##__VA_ARGS__) \
+    } while (0);
+
+#define LOG_ERROR(format, ...)                      \
+    do                                              \
+    {                                               \
+        LOG_BASE(Log::ERROR, format, ##__VA_ARGS__) \
+    } while (0);
+
