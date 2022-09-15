@@ -4,6 +4,9 @@
 #include <mysql/mysql.h>
 #include <cassert>
 
+/*
+ * RAII应用，构造时取走连接，离开作用域自动放回连接
+ */
 class SqlConnRAII
 {
 

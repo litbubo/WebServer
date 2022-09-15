@@ -11,7 +11,7 @@ class ThreadPool
 {
 
 public:
-    explicit ThreadPool(size_t threadCount = 8);
+    explicit ThreadPool(size_t threadCount = 12);
     ~ThreadPool();
     ThreadPool(ThreadPool &&) = default;
     template <typename F>

@@ -1,18 +1,27 @@
 #include <sqlconnpool.h>
-
+#include <log.h>
 #include <cassert>
 
+/*
+ * 单例模式，私有化构造函数和析构函数，析构时关闭连接池
+ */
 SqlConnPool::~SqlConnPool()
 {
     this->closePool();
 }
 
+/*
+ * 单例模式，返回连接池实例
+ */
 SqlConnPool *SqlConnPool::instance()
 {
     static SqlConnPool connPool;
     return &connPool;
 }
 
+/*
+ * 连接池初始化函数
+ */
 void SqlConnPool::init(const char *host,
                        int port,
                        const char *user,
@@ -21,12 +30,14 @@ void SqlConnPool::init(const char *host,
                        size_t connSize)
 {
     assert(connSize > 0);
+    /* 生成 connSize个连接 */
     for (size_t i = 0; i < connSize; i++)
     {
         MYSQL *sql = nullptr;
         sql = mysql_init(sql);
         if (sql == nullptr)
         {
+            
             assert(static_cast<bool>(sql));
         }
         sql = mysql_real_connect(sql, host, user, pwd, db, port, nullptr, 0);
@@ -37,11 +48,13 @@ void SqlConnPool::init(const char *host,
         connQue_.push(sql);
     }
     MAX_CONN_ = connSize;
+    /* 初始化信号量 */
     sem_init(&sem_, 0, MAX_CONN_);
 }
 
 void SqlConnPool::closePool()
 {
+    /* 枷锁，将池中所有的链接取出后关闭 */
     std::lock_guard<std::mutex> locker(mtx_);
     while (connQue_.empty() != true)
     {
@@ -52,6 +65,9 @@ void SqlConnPool::closePool()
     mysql_library_end();
 }
 
+/*
+ * 取出一个连接
+ */
 MYSQL *SqlConnPool::getConn()
 {
     MYSQL *sql = nullptr;
@@ -59,6 +75,7 @@ MYSQL *SqlConnPool::getConn()
 
     {
         std::lock_guard<std::mutex> locker(mtx_);
+        /* 双检，保证取出来的连接是真实存在的 */
         if (connQue_.empty())
         {
             return nullptr;
@@ -66,10 +83,14 @@ MYSQL *SqlConnPool::getConn()
         sql = connQue_.front();
         connQue_.pop();
     }
+    /* 判断是否真正取出来连接了 */
     assert(static_cast<bool>(sql));
     return sql;
 }
 
+/*
+ * 将连接放回连接池
+ */
 void SqlConnPool::freeConn(MYSQL *sql)
 {
     assert(static_cast<bool>(sql));
@@ -81,6 +102,9 @@ void SqlConnPool::freeConn(MYSQL *sql)
     sem_post(&sem_);
 }
 
+/*
+ * 获取连接池中的连接数
+ */
 int SqlConnPool::getFreeConnCount()
 {
     std::lock_guard<std::mutex> locker(mtx_);

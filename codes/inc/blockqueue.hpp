@@ -1,6 +1,45 @@
-#include <blockqueue.h>
+#pragma once
 
 #include <chrono>
+#include <deque>
+#include <mutex>
+#include <condition_variable>
+#include <cassert>
+
+/*
+ * 实现线程安全的双端阻塞队列
+ */
+template <typename T>
+class BlockQueue
+{
+public:
+    explicit BlockQueue(size_t maxCapacity = 1000);
+    ~BlockQueue();
+
+    void clear();
+    void close();
+    void flush();
+    bool empty();
+    bool full();
+    size_t size();
+    size_t capacity();
+    T front();
+    T back();
+    void push_back(const T &item);
+    void push_front(const T &item);
+    bool pop(T &item);
+    bool pop(T &item, int timeout);
+
+private:
+    std::deque<T> deq_;
+    std::mutex mtx_;
+    std::condition_variable condConsumer_;
+    std::condition_variable condProducer_;
+    bool isClose_;
+    size_t capacity_;
+};
+
+
 
 template <typename T>
 BlockQueue<T>::BlockQueue(size_t maxCapacity) : capacity_(maxCapacity)
@@ -52,7 +91,7 @@ void BlockQueue<T>::clear()
  * 获取队首元素
  */
 template <typename T>
-T BlockQueue<T>::front() const
+T BlockQueue<T>::front()
 {
     std::lock_guard<std::mutex> locker(mtx_);
     return deq_.front();
@@ -62,7 +101,7 @@ T BlockQueue<T>::front() const
  * 获取队尾元素
  */
 template <typename T>
-T BlockQueue<T>::back() const
+T BlockQueue<T>::back()
 {
     std::lock_guard<std::mutex> locker(mtx_);
     return deq_.back();
@@ -72,7 +111,7 @@ T BlockQueue<T>::back() const
  * 获取队列容量
  */
 template <typename T>
-size_t BlockQueue<T>::capacity() const
+size_t BlockQueue<T>::capacity()
 {
     std::lock_guard<std::mutex> locker(mtx_);
     return capacity_;
@@ -82,7 +121,7 @@ size_t BlockQueue<T>::capacity() const
  * 获取队列大小
  */
 template <typename T>
-size_t BlockQueue<T>::size() const
+size_t BlockQueue<T>::size()
 {
     std::lock_guard<std::mutex> locker(mtx_);
     return deq_.size();
@@ -92,7 +131,7 @@ size_t BlockQueue<T>::size() const
  * 获取队列是否为空
  */
 template <typename T>
-bool BlockQueue<T>::empty() const
+bool BlockQueue<T>::empty()
 {
     std::lock_guard<std::mutex> locker(mtx_);
     return deq_.empty();
@@ -102,7 +141,7 @@ bool BlockQueue<T>::empty() const
  * 获取队列是否为满
  */
 template <typename T>
-bool BlockQueue<T>::full() const
+bool BlockQueue<T>::full()
 {
     std::lock_guard<std::mutex> locker(mtx_);
     return deq_.size() >= capacity_;
