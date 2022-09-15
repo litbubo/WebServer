@@ -37,12 +37,13 @@ void SqlConnPool::init(const char *host,
         sql = mysql_init(sql);
         if (sql == nullptr)
         {
-            
+            LOG_ERROR("MySQL init error!");
             assert(static_cast<bool>(sql));
         }
         sql = mysql_real_connect(sql, host, user, pwd, db, port, nullptr, 0);
         if (sql == nullptr)
         {
+            LOG_ERROR("MySQL connect error!");
             assert(static_cast<bool>(sql));
         }
         connQue_.push(sql);
