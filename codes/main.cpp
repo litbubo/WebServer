@@ -6,6 +6,7 @@
 #include <threadpool.hpp>
 #include <iostream>
 #include <log.h>
+#include <httprequest.h>
 
 int main()
 {
