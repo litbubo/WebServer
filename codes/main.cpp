@@ -8,6 +8,8 @@
 #include <log.h>
 #include <httprequest.h>
 #include <heaptimer.h>
+#include <httpconn.h>
+#include <httpresponse.h>
 
 int main()
 {
