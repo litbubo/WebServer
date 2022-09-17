@@ -7,6 +7,7 @@
 #include <iostream>
 #include <log.h>
 #include <httprequest.h>
+#include <heaptimer.h>
 
 int main()
 {
@@ -19,12 +20,11 @@ int main()
         {
             LOG_ERROR("test---%d", i);
         }
-            
+
         else
         {
             LOG_INFO("test---%d", i);
         }
-            
 
         i++;
     }
