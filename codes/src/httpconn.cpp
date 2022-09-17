@@ -112,6 +112,44 @@ sockaddr_in HttpConn::getAddr() const
 
 bool HttpConn::process()
 {
+    if (request_.state() == HttpRequest::FINISH)
+    {
+        request_.init();
+    }
+    if (readBuff_.readableBytes() <= 0)
+    {
+        return false;
+    }
+
+    HttpRequest::HTTP_CODE processStatus = request_.parse(readBuff_);
+    if (processStatus == HttpRequest::GET_REQUEST)
+    {
+        LOG_DEBUG("request path %s", request_.path().data());
+        response_.init(srcDir_, request_.path(), request_.iskeepAlive(), 200);
+    }
+    else if (processStatus == HttpRequest::NO_REQUEST)
+    {
+        return false;
+    }
+    else
+    {
+        response_.init(srcDir_, request_.path(), false, 400);
+    }
+
+    response_.makeResponse(writeBuff_);
+
+    iov[0].iov_base = const_cast<char *>(writeBuff_.peek());
+    iov[0].iov_len = writeBuff_.writableBytes();
+    iovCount_ = 1;
+
+    if (response_.fileLen() > 0 && response_.file())
+    {
+        iov[1].iov_base = response_.file();
+        iov[1].iov_len = response_.fileLen();
+        iovCount_ = 2;
+    }
+    LOG_DEBUG("filesize == %d, iovcnt == %d, total == %d", response_.fileLen(), iovCount_, this->toWriteBytes());
+
     return true;
 }
 
