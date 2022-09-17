@@ -48,10 +48,10 @@ private:
     static bool userVerify(const std::string &name, const std::string &pwd, bool isLogin);
 
     bool parseRequestLine(const std::string &line);
-    bool parseHeader(const std::string &line);
     bool parseBody(const std::string &line);
-    bool parsePath();
     bool parsePost();
+    void parseHeader(const std::string &line);
+    void parsePath();
     void parseFromUrlencode();
 
     PARSE_STATE state_;

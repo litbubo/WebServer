@@ -42,8 +42,63 @@ void HttpRequest::init()
     post_.clear();
 }
 
+//  GET /login HTTP/1.1\r\n
+//  Host: 192.168.188.136:1316\r\n
+//  Connection: keep-alive\r\n
+//  Upgrade-Insecure-Requests: 1\r\n
+//  User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/105.0.0.0 Safari/537.36\r\n
+//  Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9\r\n
+//  Accept-Encoding: gzip, deflate\r\n
+//  Accept-Language: zh-CN,zh;q=0.9\r\n
+//  \r\n
+
 HttpRequest::HTTP_CODE HttpRequest::parse(Buffer &buff)
 {
+    if (buff.readableBytes() <= 0)
+        return NO_REQUEST;
+
+    const char CRLF[] = "\r\n";
+    while (buff.readableBytes() && state_ != FINISH)
+    {
+        const char *line_end = std::search(buff.peek(), buff.beginWriteConst(), CRLF, CRLF + 2);
+        if (line_end == buff.beginWriteConst() && state_ == HEADER)
+            break;
+
+        std::string line = std::string(buff.peek(), line_end);
+        switch (state_)
+        {
+        case REQUEST_LINE:
+            if (this->parseRequestLine(line) == false)
+            {
+                return BAD_REQUEST;
+            }
+            this->parsePath();
+            break;
+        case HEADER:
+            this->parseHeader(line);
+            if (state_ == BODY && method_ == "GET")
+            {
+                state_ = FINISH;
+                buff.retrieveAll();
+                return GET_REQUEST;
+            }
+            break;
+        case BODY:
+            if (this->parseBody(line) == false)
+            {
+                return NO_REQUEST;
+            }
+            buff.retrieveAll();
+            return GET_REQUEST;
+            break;
+        default:
+            return INTERNAL_ERROR;
+            break;
+        }
+        buff.retrieveUntil(line_end + 2);
+    }
+    LOG_DEBUG("%s, %s, %s", method_.data(), path_.data(), version_.data());
+    return NO_REQUEST;
 }
 
 HttpRequest::PARSE_STATE HttpRequest::state() const
@@ -198,30 +253,27 @@ bool HttpRequest::parseRequestLine(const std::string &line)
     return false;
 }
 
-/*
- *   Connection: keep-alive\r\n
- *   User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/105.0.0.0 Safari/537.36 Edg/105.0.1343.33\r\n
- *   Accept: image/webp,image/apng,image/svg+xml;q=0.8\r\n
- *   Referer: http://www.baidu.com/\r\n
- *   Accept-Encoding: gzip, deflate\r\n
- *   Accept-Language: zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6\r\n
- *   \r\n
- */
-bool HttpRequest::parseHeader(const std::string &line)
+//  GET /login HTTP/1.1\r\n
+//  Host: 192.168.188.136:1316\r\n
+//  Connection: keep-alive\r\n
+//  Upgrade-Insecure-Requests: 1\r\n
+//  User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/105.0.0.0 Safari/537.36\r\n
+//  Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9\r\n
+//  Accept-Encoding: gzip, deflate\r\n
+//  Accept-Language: zh-CN,zh;q=0.9\r\n
+//  \r\n
+void HttpRequest::parseHeader(const std::string &line)
 {
     std::regex pattern("^([^:]*): ?(.*)$");
     std::smatch subMatch;
     if (std::regex_match(line, subMatch, pattern))
     {
         header_[subMatch[1]] = subMatch[2];
-        return true;
     }
     else
     {
         state_ = BODY;
-        return true;
     }
-    return false;
 }
 
 bool HttpRequest::parseBody(const std::string &line)
@@ -239,7 +291,7 @@ bool HttpRequest::parseBody(const std::string &line)
 /*
  * 给html请求加上文件扩展名.html
  */
-bool HttpRequest::parsePath()
+void HttpRequest::parsePath()
 {
     if (path_ == "/")
     {
@@ -260,6 +312,27 @@ bool HttpRequest::parsePath()
 
 bool HttpRequest::parsePost()
 {
+    if (body_.size() < static_cast<size_t>(atol(header_.find("Content-Length")->second.data())))
+    {
+        return false;
+    }
+    if (method_ == "POST" && header_.find("Content-Type")->second == "application/x-www-form-urlencoded")
+    {
+        this->parseFromUrlencode();
+        if (DEFAULT_HTML_TAG_.count(path_) == 1)
+        {
+            bool isLogin = static_cast<bool>(DEFAULT_HTML_TAG_.find(path_)->second);
+            if (this->userVerify(post_.find("username")->second, post_.find("password")->second, isLogin))
+            {
+                path_ = "/welcome.html";
+            }
+            else
+            {
+                path_ = "/error.html";
+            }
+        }
+    }
+    return true;
 }
 
 /*
