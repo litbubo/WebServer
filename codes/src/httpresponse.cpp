@@ -179,7 +179,7 @@ void HttpResponse::addContent(Buffer &buff)
         this->errorContent(buff, "File error");
         return;
     }
-    LOG_DEBUG("file path %s%s", srcDir_, path_);
+    LOG_DEBUG("file path %s%s", srcDir_.data(), path_.data());
     auto mmRet = mmap(nullptr, mmFileStat_.st_size, PROT_READ, MAP_PRIVATE, srcfd, 0);
     if (mmRet == MAP_FAILED)
     {

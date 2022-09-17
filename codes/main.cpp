@@ -1,35 +1,11 @@
-#include <buffer.h>
-#include <blockqueue.hpp>
-#include <epoller.h>
-#include <sqlconnpool.h>
-#include <sqlconnRAII.hpp>
-#include <threadpool.hpp>
-#include <iostream>
-#include <log.h>
-#include <httprequest.h>
-#include <heaptimer.h>
-#include <httpconn.h>
-#include <httpresponse.h>
+#include <unistd.h>
+#include <webserver.h>
 
 int main()
 {
-    Log *log = Log::instance();
-    log->init(Log::DEBUG);
-    int i = 0;
-    while (i < 100000)
-    {
-        if (i % 2 == 0)
-        {
-            LOG_ERROR("test---%d", i);
-        }
-
-        else
-        {
-            LOG_INFO("test---%d", i);
-        }
-
-        i++;
-    }
-
-    exit(0);
+    WebServer server(
+        1316, 3, 60000, false,                                /* 端口 ET模式 timeoutMs 优雅退出  */
+        3306, "debian-sys-maint", "Xs2MbM94SgMsraFP", "mydb", /* Mysql配置 */
+        12, 12, true, 4, 1024);                               /* 连接池数量 线程池数量 日志开关 日志等级 日志异步队列容量 */
+    server.start();
 }

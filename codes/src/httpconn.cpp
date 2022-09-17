@@ -139,7 +139,7 @@ bool HttpConn::process()
     response_.makeResponse(writeBuff_);
 
     iov[0].iov_base = const_cast<char *>(writeBuff_.peek());
-    iov[0].iov_len = writeBuff_.writableBytes();
+    iov[0].iov_len = writeBuff_.readableBytes();
     iovCount_ = 1;
 
     if (response_.fileLen() > 0 && response_.file())

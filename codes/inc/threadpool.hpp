@@ -11,31 +11,13 @@ class ThreadPool
 {
 
 public:
-    explicit ThreadPool(size_t threadCount = 12);
-    ~ThreadPool();
-    ThreadPool(ThreadPool &&) = default;
-    template <typename F>
-    void addTask(F &&task);
-
-private:
-    struct pool
+    explicit ThreadPool(size_t threadCount = 12) : pool_(std::make_shared<pool>())
     {
-        std::mutex mtx;
-        std::condition_variable cond;
-        std::queue<std::function<void()>> task;
-        bool isClose;
-    };
-
-    std::shared_ptr<pool> pool_;
-};
-
-ThreadPool::ThreadPool(size_t threadCount) : pool_(std::make_shared<pool>())
-{
-    assert(threadCount > 0);
-    for (size_t i = 0; i < threadCount; i++)
-    {
-        std::thread([=]()
-                    {
+        assert(threadCount > 0);
+        for (size_t i = 0; i < threadCount; i++)
+        {
+            std::thread([=]()
+                        {
                         std::unique_lock<std::mutex> locker(pool_->mtx);
                         while (true)
                         {
@@ -56,19 +38,33 @@ ThreadPool::ThreadPool(size_t threadCount) : pool_(std::make_shared<pool>())
                                 pool_->cond.wait(locker);
                             }
                         } })
-            .detach();
+                .detach();
+        }
     }
-}
-
-ThreadPool::~ThreadPool()
-{
-    if (static_cast<bool>(pool_))
+    ~ThreadPool()
     {
-        std::lock_guard<std::mutex> locker(pool_->mtx);
-        pool_->isClose = true;
+        if (static_cast<bool>(pool_))
+        {
+            std::lock_guard<std::mutex> locker(pool_->mtx);
+            pool_->isClose = true;
+        }
+        pool_->cond.notify_all();
     }
-    pool_->cond.notify_all();
-}
+    ThreadPool(ThreadPool &&) = default;
+    template <typename F>
+    void addTask(F &&task);
+
+private:
+    struct pool
+    {
+        std::mutex mtx;
+        std::condition_variable cond;
+        std::queue<std::function<void()>> task;
+        bool isClose;
+    };
+
+    std::shared_ptr<pool> pool_;
+};
 
 template <typename F>
 void ThreadPool::addTask(F &&task)

@@ -39,8 +39,6 @@ private:
     size_t capacity_;
 };
 
-
-
 template <typename T>
 BlockQueue<T>::BlockQueue(size_t maxCapacity) : capacity_(maxCapacity)
 {

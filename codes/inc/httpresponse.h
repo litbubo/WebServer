@@ -20,7 +20,7 @@ public:
     void unmapFile();
     char *file();
     size_t fileLen() const;
-    void errorContent(Buffer &buff,std::string message);
+    void errorContent(Buffer &buff, std::string message);
     int code() const;
 
 private:

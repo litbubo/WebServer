@@ -98,4 +98,3 @@ private:
     {                                               \
         LOG_BASE(Log::ERROR, format, ##__VA_ARGS__) \
     } while (0);
-
