@@ -20,9 +20,9 @@ public:
     };
 
     void init(LOG_LEVEL level = INFO,
+              int maxQueueSize = 1024,
               const char *path = "./log",
-              const char *suffix = ".log",
-              int maxQueueSize = 1024);
+              const char *suffix = ".log");
     static Log *instance();
 
     LOG_LEVEL getLevel();

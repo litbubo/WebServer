@@ -42,9 +42,9 @@ Log::~Log()
 }
 
 void Log::init(LOG_LEVEL level,
+               int maxQueueSize,
                const char *path,
-               const char *suffix,
-               int maxQueueSize)
+               const char *suffix)
 {
     isOpen_ = true;
     level_ = level;

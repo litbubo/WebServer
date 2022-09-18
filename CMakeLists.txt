@@ -8,7 +8,7 @@ set (CMAKE_C_COMPILER "/usr/bin/gcc")
 
 set (CMAKE_CXX_COMPILER "/usr/bin/g++")
 
-add_compile_options(-O3 -Wall -m64)
+add_compile_options(-O2 -Wall -m64)
 
 # 指定执行程序的输出路径
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/build/bin)
