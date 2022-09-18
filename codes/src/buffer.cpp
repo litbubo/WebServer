@@ -120,16 +120,25 @@ void Buffer::append(const char *str, size_t len)
     this->hasWritten(len);
 }
 
+/*
+ * 向buffer中追加数据
+ */
 void Buffer::append(const std::string &str)
 {
     this->append(str.data(), str.length());
 }
 
+/*
+ * 向buffer中追加数据
+ */
 void Buffer::append(const void *data, size_t len)
 {
     this->append(static_cast<const char *>(data), len);
 }
 
+/*
+ * 向buffer中追加数据
+ */
 void Buffer::append(const Buffer &buffer)
 {
     this->append(buffer.peek(), buffer.readableBytes());
@@ -146,21 +155,25 @@ void Buffer::ensurewritable(size_t len)
     }
     assert(this->writableBytes() >= len);
 }
+
 /*
  * 调整buff空间，使其容纳的下新存入的内容
  */
 void Buffer::makeSpace(size_t len)
 {
+    /* 如果可写的空间和已经读完的空间总和也小于需求len长度的空间，那就干脆直接重新设置vector大小 */
     if (this->writableBytes() + this->prependableBytes() < len)
     {
         buffer_.resize(writePos_ + len + 1);
     }
+    /* 如果空闲空间大小足够，将vector中的未使用内容整体迁移至首部，留下空闲空间在后面待使用 */
     else
     {
         size_t readable = this->readableBytes();
         std::copy(this->beginPtr() + readPos_, this->beginPtr() + writePos_, this->beginPtr());
         readPos_ = 0;
         writePos_ = readPos_ + readable;
+        /* 确保数据迁移正确 */
         assert(readable == this->readableBytes());
     }
 }
@@ -170,15 +183,18 @@ void Buffer::makeSpace(size_t len)
  */
 ssize_t Buffer::readFd(int fd, int *retError)
 {
+    /* 聚集读，尽量一次读完http请求报文，减少性能损耗 */
     char buff[1024 * 128];
     struct iovec iov[2] = {0};
 
     size_t writable = this->writableBytes();
+    /* iov[0]指向vector iov[1]指向char buff */
     iov[0].iov_base = this->beginPtr() + writePos_;
     iov[0].iov_len = writable;
     iov[1].iov_base = buff;
     iov[1].iov_len = sizeof(buff);
 
+    /* ET模式下，无数据可读数据返回-1，errno = EAGAIN */
     const ssize_t len = readv(fd, iov, sizeof(iov) / sizeof(struct iovec));
     if (len < 0)
     {
@@ -201,6 +217,7 @@ ssize_t Buffer::readFd(int fd, int *retError)
  */
 ssize_t Buffer::writeFd(int fd, int *retError)
 {
+    /* ET模式，写满缓冲区后，返回-1，errno = EAGAIN */
     const ssize_t len = write(fd, this->peek(), this->readableBytes());
     if (len < 0)
     {

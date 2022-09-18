@@ -14,6 +14,7 @@ public:
     explicit ThreadPool(size_t threadCount = 12) : pool_(std::make_shared<pool>())
     {
         assert(threadCount > 0);
+        /* 创建threadCount个线程，并且线程分离 */
         for (size_t i = 0; i < threadCount; i++)
         {
             std::thread([=]()
@@ -26,6 +27,7 @@ public:
                                 auto task = std::move(pool_->task.front());
                                 pool_->task.pop();
                                 locker.unlock();
+                                /* 执行任务*/
                                 task();
                                 locker.lock();
                             }
@@ -35,6 +37,7 @@ public:
                             }
                             else
                             {
+                                /* 无任务则等待生产者唤醒 */
                                 pool_->cond.wait(locker);
                             }
                         } })
@@ -46,6 +49,7 @@ public:
         if (static_cast<bool>(pool_))
         {
             std::lock_guard<std::mutex> locker(pool_->mtx);
+            /* 设置线程池关闭标志，让线程自杀 */
             pool_->isClose = true;
         }
         pool_->cond.notify_all();
@@ -59,13 +63,14 @@ private:
     {
         std::mutex mtx;
         std::condition_variable cond;
-        std::queue<std::function<void()>> task;
+        std::queue<std::function<void()>> task; // 线程池任务队列
         bool isClose;
     };
 
     std::shared_ptr<pool> pool_;
 };
 
+/* 添加任务 */
 template <typename F>
 void ThreadPool::addTask(F &&task)
 {

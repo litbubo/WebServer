@@ -20,7 +20,7 @@
 class Webserver
 {
 public:
-    Webserver(int port, int trigMode, int timeoutMs, bool optLinger,
+    Webserver(int port, int timeoutMs,
               int sqlPort, const char *sqlUser, const char *sqlPwd, const char *dbName,
               int connPoolNum, int threadNum, bool openLog, Log::LOG_LEVEL logLevel, int logQueSize);
     ~Webserver();
@@ -31,7 +31,7 @@ private:
     static int setFdNonBlock(int fd);
 
     bool initSocket();
-    void initEventMode(int trigMode);
+    void initEventMode();
     void addClient(int fd, sockaddr_in addr);
     void dealListen();
     void dealWrite(HttpConn *client);
@@ -46,8 +46,7 @@ private:
     int port_;
     int timeoutMs_;
     int listenFd_;
-    bool openLinger_;
-    bool isClose_;
+    volatile bool isClose_;
     char *srcDir_;
     uint32_t listenEvent_;
     uint32_t connEvent_;

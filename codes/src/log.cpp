@@ -25,22 +25,29 @@ Log::Log() : lineCount_(0),
  */
 Log::~Log()
 {
+    /* 写线程不为空且写线程可回收 */
     if (thread_ != nullptr && thread_->joinable())
     {
+        /* 队列不为空则一直唤醒消费者取出日志 */
         while (queue_->empty() != true)
         {
             queue_->flush();
         }
+        /* 关闭阻塞队列和线程 */
         queue_->close();
         thread_->join();
     }
     if (fp_)
     {
+        /* 刷新文件并且关闭文件 */
         this->flush();
         fclose(fp_);
     }
 }
 
+/* 
+ * 初始化Log配置
+ */
 void Log::init(LOG_LEVEL level,
                int maxQueueSize,
                const char *path,
@@ -48,13 +55,16 @@ void Log::init(LOG_LEVEL level,
 {
     isOpen_ = true;
     level_ = level;
+    /* 如果消息对列容量不为 0，则为异步日志 */
     if (maxQueueSize > 0)
     {
         isAsync_ = true;
         if (queue_ == nullptr && thread_ == nullptr)
         {
+            /* 初始化消息队列和线程智能指针 */
             std::unique_ptr<BlockQueue<std::string>> que_ptr(new BlockQueue<std::string>(maxQueueSize));
             queue_ = std::move(que_ptr);
+            /* 初始化同时设置线程回调函数为异步写日志 */
             std::unique_ptr<std::thread> thread_ptr(new std::thread([]()
                                                                     { Log::instance()->asyncWrite(); }));
             thread_ = std::move(thread_ptr);
@@ -65,16 +75,18 @@ void Log::init(LOG_LEVEL level,
         }
     }
     lineCount_ = 0;
+    /* 获取系统本地时间 */
     time_t timer = time(nullptr);
     auto systime = localtime(&timer);
     path_ = path;
     suffix_ = suffix;
 
+    /* 填充文件名，eg：2022_09_17.log */
     char fileName[LOG_NAME_LEN];
     memset(fileName, 0, sizeof(fileName));
     snprintf(fileName, LOG_NAME_LEN - 1, "%s/%04d_%02d_%02d%s",
              path_, systime->tm_year + 1900, systime->tm_mon + 1, systime->tm_mday, suffix_);
-
+    /* 设置今天日期 */
     today_ = systime->tm_mday;
 
     {
@@ -88,6 +100,7 @@ void Log::init(LOG_LEVEL level,
         fp_ = fopen(fileName, "a");
         if (fp_ == nullptr)
         {
+            /* 如果文件打开失败，可能是没有log目录。 */
             mkdir(path, 0777);
             fp_ = fopen(fileName, "a");
         }
@@ -100,6 +113,7 @@ void Log::init(LOG_LEVEL level,
  */
 Log *Log::instance()
 {
+    /* C++11后局部静态变量无需枷锁 */
     static Log log;
     return &log;
 }
@@ -144,16 +158,19 @@ void Log::flush()
  */
 void Log::write(LOG_LEVEL level, const char *format, ...)
 {
+    /* 获取系统当前本地时间 */
     struct timeval now = {0};
     gettimeofday(&now, nullptr);
     time_t tsec = now.tv_sec;
     auto systime = localtime(&tsec);
 
+    /* 如果时间不是今天或者日志行数超过5w行，就该换一个文件写了 */
     if (today_ != systime->tm_mday || (lineCount_ && (lineCount_ % LOG_MAX_LEN == 0)))
     {
         std::lock_guard<std::mutex> locker(mtx_);
-
+        /* 生成新的文件名eg：2022_09_17_1.log */
         char newFile[LOG_NAME_LEN] = {0};
+        /* 如果是日期变了 */
         if (today_ != systime->tm_mday)
         {
             snprintf(newFile, LOG_NAME_LEN - 1, "%s/%04d_%02d_%02d%s",
@@ -161,18 +178,21 @@ void Log::write(LOG_LEVEL level, const char *format, ...)
             lineCount_ = 0;
             today_ = systime->tm_mday;
         }
+        /* 如果是行数超过5w行 */
         else
         {
             snprintf(newFile, LOG_NAME_LEN - 1, "%s/%04d_%02d_%02d_%d%s",
                      path_, systime->tm_year, systime->tm_mon, systime->tm_mday, lineCount_ / LOG_MAX_LEN, suffix_);
         }
 
+        /* 刷新原文件并创建新文件 */
         this->flush();
         fclose(fp_);
         fp_ = fopen(newFile, "a");
         assert(fp_ != nullptr);
     }
 
+    /* 正常向文件中写日志 */
     {
         std::lock_guard<std::mutex> locker(mtx_);
         lineCount_++;
@@ -185,6 +205,7 @@ void Log::write(LOG_LEVEL level, const char *format, ...)
         buffer_.append(temp, strlen(temp));
         memset(temp, 0, sizeof(temp));
 
+        /* 添加日志头 */
         appendLogLevelTitle(level);
 
         va_list vaList;
@@ -195,6 +216,7 @@ void Log::write(LOG_LEVEL level, const char *format, ...)
         buffer_.append(temp, strlen(temp));
         buffer_.append("\n\0", 2);
 
+        /* 异步写，放入消息队列中 */
         if (isAsync_ == true && queue_ != nullptr && queue_->full() != true)
         {
             queue_->push_back(buffer_.retrieveAlltoString());

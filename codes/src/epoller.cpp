@@ -69,12 +69,18 @@ int Epoller::wait(int timeoutMs)
     return epoll_wait(epollFd_, &*events_.begin(), static_cast<int>(events_.size()), timeoutMs);
 }
 
+/*
+ * 按下标获取fd
+ */
 int Epoller::getEventFd(size_t i) const
 {
     assert(i < events_.size() && i >= 0);
     return events_.at(i).data.fd;
 }
 
+/*
+ * 按下标获取event
+ */
 uint32_t Epoller::getEvents(size_t i) const
 {
     assert(i < events_.size() && i >= 0);

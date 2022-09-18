@@ -45,19 +45,30 @@ const std::unordered_map<int, std::string> HttpResponse::CODE_PATH_ = {
     {404, "/404.html"},
 };
 
+/*
+ * 构造函数，初始化变量
+ */
 HttpResponse::HttpResponse() : code_(-1), isKeepAlive_(false), mmFile_(nullptr), mmFileStat_{0}, path_(""), srcDir_("")
 {
 }
+
+/*
+ * 析构函数，取消文件映射区
+ */
 HttpResponse::~HttpResponse()
 {
     this->unmapFile();
 }
 
+/*
+ * 初始函数，设置资源目录，设置要返回的文件路径和长连接，以及返回码
+ */
 void HttpResponse::init(const std::string srcDir, const std::string &path, bool isKeepAlive, int code)
 {
     assert(srcDir != "");
     if (mmFile_)
     {
+        /* 先解除文件映射区 */
         unmapFile();
     }
     srcDir_ = srcDir;
@@ -68,16 +79,22 @@ void HttpResponse::init(const std::string srcDir, const std::string &path, bool 
     mmFileStat_ = {0};
 }
 
+/*
+ * 制作返回http报文，存入buff
+ */
 void HttpResponse::makeResponse(Buffer &buff)
 {
+    /* 如果该文件获取不到文件信息或者是个文件夹，则返回404 找不到文件 */
     if (stat(std::string(srcDir_ + path_).data(), &mmFileStat_) < 0 || S_ISDIR(mmFileStat_.st_mode))
     {
         code_ = 404;
     }
+    /* 无权限，返回403 */
     else if (!(mmFileStat_.st_mode & S_IROTH))
     {
         code_ = 403;
     }
+    /* 正常 */
     else if (code_ == -1)
     {
         code_ = 200;
@@ -85,12 +102,18 @@ void HttpResponse::makeResponse(Buffer &buff)
     else
     {
     }
+    /* 如果是400 403 404 则设置文件mmFileStat_为相应的html文件 */
     this->errorHtml();
+    /* 制作状态行，返回头，和返回载荷长度 */
     this->addStateLine(buff);
     this->addHeader(buff);
     this->addContent(buff);
 }
 
+ 
+/*
+ * 取消文件映射
+ */
 void HttpResponse::unmapFile()
 {
     if (mmFile_)
@@ -100,15 +123,25 @@ void HttpResponse::unmapFile()
     }
 }
 
+/*
+ * 返回映射区首地址
+ */
 char *HttpResponse::file()
 {
     return mmFile_;
 }
+
+/*
+ * 返回映射区长度（文件长度）
+ */
 size_t HttpResponse::fileLen() const
 {
     return mmFileStat_.st_size;
 }
 
+/*
+ * 生成错误页面
+ */
 void HttpResponse::errorContent(Buffer &buff, std::string message)
 {
     std::string body;
@@ -133,13 +166,16 @@ void HttpResponse::errorContent(Buffer &buff, std::string message)
     buff.append(body);
 }
 
+/*
+ * 返回错误码
+ */
 int HttpResponse::code() const
 {
     return code_;
 }
 
 /*
- * 200 400 403 404
+ * 200 400 403 404，向buff添加状态行
  */
 void HttpResponse::addStateLine(Buffer &buff)
 {
@@ -156,6 +192,9 @@ void HttpResponse::addStateLine(Buffer &buff)
     buff.append("HTTP/1.1 " + std::to_string(code_) + " " + status + "\r\n");
 }
 
+/*
+ * 向buff添加状态头
+ */
 void HttpResponse::addHeader(Buffer &buff)
 {
     buff.append("Connection: ");
@@ -171,8 +210,13 @@ void HttpResponse::addHeader(Buffer &buff)
     buff.append("Content-type: " + this->getFileType() + "\r\n");
 }
 
+/*
+ * 向buff添加http返回报文的载荷长度，
+ * 同时进行文件私有映射
+ */
 void HttpResponse::addContent(Buffer &buff)
 {
+    /* 只读打开文件 */
     int srcfd = open(std::string(srcDir_ + path_).data(), O_RDONLY);
     if (srcfd < 0)
     {
@@ -180,6 +224,7 @@ void HttpResponse::addContent(Buffer &buff)
         return;
     }
     LOG_DEBUG("file path %s%s", srcDir_.data(), path_.data());
+    /* 创建文件私有映射区 */
     auto mmRet = mmap(nullptr, mmFileStat_.st_size, PROT_READ, MAP_PRIVATE, srcfd, 0);
     if (mmRet == MAP_FAILED)
     {
@@ -192,6 +237,9 @@ void HttpResponse::addContent(Buffer &buff)
     buff.append("\r\n");
 }
 
+/*
+ * 设置mmFileStat_对应的400 403 404文件信息
+ */
 void HttpResponse::errorHtml()
 {
     /* 403 404 400*/
@@ -202,6 +250,9 @@ void HttpResponse::errorHtml()
     }
 }
 
+/*
+ * 返回http文件类型 
+ */
 std::string HttpResponse::getFileType()
 {
     auto idx = path_.find_last_of(".");

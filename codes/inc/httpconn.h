@@ -31,7 +31,6 @@ public:
     size_t toWriteBytes();
     bool isKeepAlive() const;
 
-    static bool isET_;
     static const char *srcDir_;
     static std::atomic<int> userCount_;
 
