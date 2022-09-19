@@ -189,9 +189,9 @@ bool BlockQueue<T>::pop(T &item)
     /* 消费者阻塞 */
     while (deq_.empty())
     {
-        condConsumer_.wait(locker);
         if (isClose_ == true)
             return false;
+        condConsumer_.wait(locker);
     }
     item = deq_.front();
     deq_.pop_front();

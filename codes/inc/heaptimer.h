@@ -11,27 +11,23 @@
 
 #include <log.h>
 
-typedef std::function<void()> TimeoutCallBack;    /*定义的functional对象，接受一个bind函数绑定的函数对象*/
-typedef std::chrono::high_resolution_clock Clock; /*获取时间的类*/
-typedef std::chrono::milliseconds MS;             /*毫秒*/
-typedef Clock::time_point TimeStamp;              /*时间戳*/
-
 /*
- * 定义的绑定文件描述符，超时时间，删除函数的结构体
- * 同时还重载了 < 运算符
+ * 定时器时间节点
+ * 包含事件戳，节点对应的文件描述符，超时触发的回调等
  */
 struct TimerNode
 {
-    int id;             /*节点对应的文件描述符*/
-    TimeStamp expires;  /*超时时间，时间戳*/
-    TimeoutCallBack cb; /*回调函数，这里接受的是删除节点后的对应操作，WebServer::CloseConn_*/
-    /*重载的比较运算符，方便比较时间*/
+    int fd;                                                 /* 节点对应的文件描述符 */
+    std::chrono::high_resolution_clock::time_point expires; /* 超时时间，高精度时间戳 */
+    std::function<void()> timeoutCb;                        /* 超时回调函数，超时后删除节点，关闭连接，调用WebServer::CloseConn */
+    /* 重载的比较运算符，使得节点之间可以互相比较 */
     bool operator<(const TimerNode &t)
     {
         return expires < t.expires;
     }
 };
 
+/* 小根堆 */
 class HeapTimer
 {
 public:
@@ -39,11 +35,9 @@ public:
 
     ~HeapTimer();
 
-    void adjust(int id, int newExpires);
+    void adjust(int fd, int newExpires);
 
-    void add(int id, int timeout, const TimeoutCallBack &cb);
-
-    void doWork(int id);
+    void add(int fd, int timeout, const std::function<void()> &cb);
 
     void clear();
 
@@ -54,14 +48,14 @@ public:
     int getNextTick();
 
 private:
-    void del_(size_t i);
+    void del(size_t i);
 
-    void siftup_(size_t i);
+    void siftParent(size_t i);
 
-    bool siftdown_(size_t index, size_t n);
+    bool siftChild(size_t index, size_t n);
 
-    void swapNode_(size_t i, size_t j);
+    void swapNode(size_t i, size_t j);
 
-    std::vector<TimerNode> heap_;         /*使用vector实现的堆*/
-    std::unordered_map<int, size_t> ref_; /*使用hash方便确定节点是否存在，O(1)*/
+    std::vector<TimerNode> heap_;         /* 使用vector对小根堆进行存储，因为小根堆最适合用一维数组 */
+    std::unordered_map<int, size_t> ref_; /* 使用hash，O(1)，查找文件描述符对应的节点在数组中的下标位置 */
 };
